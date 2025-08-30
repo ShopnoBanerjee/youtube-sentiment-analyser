@@ -42,9 +42,6 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-# Mount static files for dashboard
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # Global variables for model and artifacts
 model = None
 tokenizer = None
@@ -126,21 +123,44 @@ def load_model_artifacts():
     global model, tokenizer, label_encoder
 
     try:
-        # Try to load tokenizer from pickle
-        try:
-            with open('../experiments/tokenizer.pkl', 'rb') as f:
-                tokenizer = pickle.load(f)
-            logger.info("Tokenizer loaded from pickle file")
-        except (AttributeError, pickle.UnpicklingError) as e:
-            logger.warning(f"Failed to load tokenizer from pickle: {e}")
-            logger.info("Recreating tokenizer from training data...")
+        # Try to load tokenizer from JSON first, then fallback to pickle, then recreate
+        tokenizer_json_path = '../experiments/tokenizer.json'
+        tokenizer_pickle_path = '../experiments/tokenizer.pkl'
 
-            # Recreate tokenizer from training data with CORRECT parameters
+        if os.path.exists(tokenizer_json_path):
+            # Load from JSON (preferred method)
+            try:
+                tokenizer = SimpleTokenizer.load(tokenizer_json_path)
+                logger.info("Tokenizer loaded from JSON file")
+            except Exception as e:
+                logger.warning(f"Failed to load tokenizer from JSON: {e}")
+                tokenizer = None
+        else:
+            tokenizer = None
+
+        # If JSON loading failed or file doesn't exist, try pickle
+        if tokenizer is None and os.path.exists(tokenizer_pickle_path):
+            try:
+                with open(tokenizer_pickle_path, 'rb') as f:
+                    tokenizer = pickle.load(f)
+                logger.info("Tokenizer loaded from pickle file")
+                # Save as JSON for future use
+                tokenizer.save(tokenizer_json_path)
+                logger.info("Tokenizer saved as JSON for future use")
+            except (AttributeError, pickle.UnpicklingError, ImportError) as e:
+                logger.warning(f"Failed to load tokenizer from pickle: {e}")
+                tokenizer = None
+
+        # If both failed, recreate from training data
+        if tokenizer is None:
+            logger.info("Recreating tokenizer from training data...")
             try:
                 df = pd.read_csv('../preprocessing_eda/data/processed/Preprocessed_Data.csv')
                 tokenizer = SimpleTokenizer(max_features=10000)  # Match original: 10000
                 tokenizer.fit_on_texts(df['clean_text'].dropna())
-                logger.info("Tokenizer recreated successfully")
+                # Save for future use
+                tokenizer.save(tokenizer_json_path)
+                logger.info("Tokenizer recreated and saved successfully")
             except Exception as recreate_error:
                 logger.error(f"Failed to recreate tokenizer: {recreate_error}")
                 raise Exception("Could not load or recreate tokenizer")
@@ -291,335 +311,40 @@ async def analyze_batch_sentiment(request: BatchSentimentRequest):
     print(results)
     return {"results": results, "summary": summary}
 
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard():
-    """Serve the dashboard HTML"""
-    html_content = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>YouTube Live Chat Sentiment Dashboard</title>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <style>
-            body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                margin: 0;
-                padding: 20px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
-            }
-            .container {
-                max-width: 1200px;
-                margin: 0 auto;
-                background: white;
-                border-radius: 10px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-                overflow: hidden;
-            }
-            .header {
-                background: #2c3e50;
-                color: white;
-                padding: 20px;
-                text-align: center;
-            }
-            .dashboard-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
-                padding: 20px;
-            }
-            .chart-container {
-                background: #f8f9fa;
-                border-radius: 8px;
-                padding: 20px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
-            .stats-container {
-                background: #f8f9fa;
-                border-radius: 8px;
-                padding: 20px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
-            .stat-card {
-                background: white;
-                border-radius: 6px;
-                padding: 15px;
-                margin: 10px 0;
-                box-shadow: 0 1px 5px rgba(0,0,0,0.1);
-            }
-            .sentiment-positive { border-left: 4px solid #28a745; }
-            .sentiment-negative { border-left: 4px solid #dc3545; }
-            .sentiment-neutral { border-left: 4px solid #ffc107; }
-            .live-indicator {
-                display: inline-block;
-                width: 10px;
-                height: 10px;
-                background: #dc3545;
-                border-radius: 50%;
-                animation: pulse 2s infinite;
-            }
-            @keyframes pulse {
-                0% { opacity: 1; }
-                50% { opacity: 0.5; }
-                100% { opacity: 1; }
-            }
-            .chat-messages {
-                max-height: 400px;
-                overflow-y: auto;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                padding: 10px;
-                background: #f8f9fa;
-            }
-            .message {
-                padding: 8px;
-                margin: 5px 0;
-                border-radius: 5px;
-                font-size: 14px;
-            }
-            .message.positive { background: #d4edda; border-left: 4px solid #28a745; }
-            .message.negative { background: #f8d7da; border-left: 4px solid #dc3545; }
-            .message.neutral { background: #fff3cd; border-left: 4px solid #ffc107; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>🎥 YouTube Live Chat Sentiment Analysis</h1>
-                <p><span class="live-indicator"></span> Live Analysis Active</p>
-            </div>
-
-            <div class="dashboard-grid">
-                <div class="chart-container">
-                    <h3>Sentiment Distribution</h3>
-                    <canvas id="sentimentChart"></canvas>
-                </div>
-
-                <div class="stats-container">
-                    <h3>Real-time Statistics</h3>
-                    <div class="stat-card sentiment-positive">
-                        <h4>Positive Messages</h4>
-                        <div id="positive-count">0</div>
-                    </div>
-                    <div class="stat-card sentiment-negative">
-                        <h4>Negative Messages</h4>
-                        <div id="negative-count">0</div>
-                    </div>
-                    <div class="stat-card sentiment-neutral">
-                        <h4>Neutral Messages</h4>
-                        <div id="neutral-count">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>Total Messages</h4>
-                        <div id="total-count">0</div>
-                    </div>
-                </div>
-
-                <div class="chart-container">
-                    <h3>Sentiment Over Time</h3>
-                    <canvas id="timeChart"></canvas>
-                </div>
-
-                <div class="stats-container">
-                    <h3>Recent Messages</h3>
-                    <div id="chat-messages" class="chat-messages"></div>
-                </div>
-            </div>
-        </div>
-
-        <script>
-            let sentimentChart, timeChart;
-            let sentimentData = { positive: 0, negative: 0, neutral: 0 };
-            let timeData = [];
-            let messageHistory = [];
-
-            // Initialize charts
-            function initCharts() {
-                const sentimentCtx = document.getElementById('sentimentChart').getContext('2d');
-                sentimentChart = new Chart(sentimentCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Positive', 'Negative', 'Neutral'],
-                        datasets: [{
-                            data: [0, 0, 0],
-                            backgroundColor: ['#28a745', '#dc3545', '#ffc107'],
-                            borderWidth: 2
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: { position: 'bottom' }
-                        }
-                    }
-                });
-
-                const timeCtx = document.getElementById('timeChart').getContext('2d');
-                timeChart = new Chart(timeCtx, {
-                    type: 'line',
-                    data: {
-                        labels: [],
-                        datasets: [
-                            {
-                                label: 'Positive',
-                                data: [],
-                                borderColor: '#28a745',
-                                backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                                tension: 0.4
-                            },
-                            {
-                                label: 'Negative',
-                                data: [],
-                                borderColor: '#dc3545',
-                                backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                                tension: 0.4
-                            },
-                            {
-                                label: 'Neutral',
-                                data: [],
-                                borderColor: '#ffc107',
-                                backgroundColor: 'rgba(255, 193, 7, 0.1)',
-                                tension: 0.4
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            y: { beginAtZero: true }
-                        }
-                    }
-                });
-            }
-
-            // Update dashboard with new data
-            function updateDashboard(data) {
-                // Update sentiment counts
-                sentimentData = data.sentiment_distribution || sentimentData;
-
-                document.getElementById('positive-count').textContent = sentimentData.positive || 0;
-                document.getElementById('negative-count').textContent = sentimentData.negative || 0;
-                document.getElementById('neutral-count').textContent = sentimentData.neutral || 0;
-                document.getElementById('total-count').textContent = data.total_messages || 0;
-
-                // Update sentiment chart
-                sentimentChart.data.datasets[0].data = [
-                    sentimentData.positive || 0,
-                    sentimentData.negative || 0,
-                    sentimentData.neutral || 0
-                ];
-                sentimentChart.update();
-
-                // Update time chart
-                if (data.timestamp) {
-                    const timeLabel = new Date(data.timestamp).toLocaleTimeString();
-                    timeData.push({
-                        time: timeLabel,
-                        positive: sentimentData.positive || 0,
-                        negative: sentimentData.negative || 0,
-                        neutral: sentimentData.neutral || 0
-                    });
-
-                    // Keep only last 20 data points
-                    if (timeData.length > 20) {
-                        timeData.shift();
-                    }
-
-                    timeChart.data.labels = timeData.map(d => d.time);
-                    timeChart.data.datasets[0].data = timeData.map(d => d.positive);
-                    timeChart.data.datasets[1].data = timeData.map(d => d.negative);
-                    timeChart.data.datasets[2].data = timeData.map(d => d.neutral);
-                    timeChart.update();
-                }
-
-                // Update message history
-                if (data.recent_messages) {
-                    messageHistory = data.recent_messages.slice(-10); // Keep last 10 messages
-                    updateMessageDisplay();
-                }
-            }
-
-            function updateMessageDisplay() {
-                const container = document.getElementById('chat-messages');
-                container.innerHTML = '';
-
-                messageHistory.forEach(msg => {
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = `message ${msg.sentiment.toLowerCase()}`;
-                    messageDiv.innerHTML = `
-                        <strong>${msg.sentiment}</strong> (${(msg.confidence * 100).toFixed(1)}%): ${msg.text}
-                    `;
-                    container.appendChild(messageDiv);
-                });
-
-                container.scrollTop = container.scrollHeight;
-            }
-
-            // WebSocket connection for real-time updates
-            let ws;
-            function connectWebSocket() {
-                ws = new WebSocket('ws://localhost:8000/ws/dashboard');
-
-                ws.onopen = function(event) {
-                    console.log('Connected to dashboard WebSocket');
-                };
-
-                ws.onmessage = function(event) {
-                    const data = JSON.parse(event.data);
-                    updateDashboard(data);
-                };
-
-                ws.onclose = function(event) {
-                    console.log('Dashboard WebSocket closed, reconnecting...');
-                    setTimeout(connectWebSocket, 1000);
-                };
-
-                ws.onerror = function(error) {
-                    console.error('Dashboard WebSocket error:', error);
-                };
-            }
-
-            // Initialize everything when page loads
-            document.addEventListener('DOMContentLoaded', function() {
-                initCharts();
-                connectWebSocket();
-
-                // Simulate some initial data (remove this in production)
-                setTimeout(() => {
-                    updateDashboard({
-                        sentiment_distribution: { positive: 15, negative: 3, neutral: 8 },
-                        total_messages: 26,
-                        timestamp: new Date().toISOString(),
-                        recent_messages: [
-                            { text: "Great stream!", sentiment: "positive", confidence: 0.95 },
-                            { text: "This is amazing!", sentiment: "positive", confidence: 0.89 },
-                            { text: "Not sure about this", sentiment: "neutral", confidence: 0.67 }
-                        ]
-                    });
-                }, 1000);
-            });
-        </script>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
-
 # WebSocket endpoint for real-time dashboard updates
 @app.websocket("/ws/dashboard")
 async def dashboard_websocket(websocket: WebSocket):
     await websocket.accept()
+    logger.info("Dashboard WebSocket connected")
     try:
         while True:
-            # In a real implementation, you'd receive data from the Chrome extension
-            # For now, we'll just keep the connection alive
+            # Receive data from Chrome extension
             data = await websocket.receive_text()
-            # Process the data and send back analysis results
-            await websocket.send_text(json.dumps({
-                "status": "received",
-                "data": data
-            }))
+            try:
+                message_data = json.loads(data)
+                
+                # Process sentiment analysis data
+                if "action" in message_data and message_data["action"] == "sentiment_update":
+                    # Send back processed data for dashboard
+                    response_data = {
+                        "sentiment_distribution": message_data.get("sentiment_distribution", {}),
+                        "total_messages": message_data.get("total_messages", 0),
+                        "timestamp": datetime.now().isoformat(),
+                        "recent_messages": message_data.get("recent_messages", [])
+                    }
+                    await websocket.send_text(json.dumps(response_data))
+                else:
+                    # Echo back for other messages
+                    await websocket.send_text(json.dumps({
+                        "status": "received",
+                        "data": message_data
+                    }))
+                    
+            except json.JSONDecodeError:
+                await websocket.send_text(json.dumps({
+                    "error": "Invalid JSON data"
+                }))
+                
     except WebSocketDisconnect:
         logger.info("Dashboard WebSocket disconnected")
 

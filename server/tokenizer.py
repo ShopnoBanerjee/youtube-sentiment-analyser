@@ -2,6 +2,7 @@
 Simple Tokenizer for text processing
 """
 from collections import Counter
+import json
 
 
 class SimpleTokenizer:
@@ -36,3 +37,25 @@ class SimpleTokenizer:
             sequence = [self.word_to_index.get(word, 0) for word in words]
             sequences.append(sequence)
         return sequences
+
+    def save(self, filepath):
+        """Save tokenizer to JSON file"""
+        data = {
+            'max_features': self.max_features,
+            'word_to_index': self.word_to_index,
+            'index_to_word': {str(k): v for k, v in self.index_to_word.items()}  # JSON keys must be strings
+        }
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    @classmethod
+    def load(cls, filepath):
+        """Load tokenizer from JSON file"""
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        tokenizer = cls(max_features=data['max_features'])
+        tokenizer.word_to_index = data['word_to_index']
+        tokenizer.index_to_word = {int(k): v for k, v in data['index_to_word'].items()}
+
+        return tokenizer
