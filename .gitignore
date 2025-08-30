@@ -2,3 +2,4 @@ mlflow-server_accessKeys.csv
 .venv
 mlflow.pem
 mlruns
+__pycache__
