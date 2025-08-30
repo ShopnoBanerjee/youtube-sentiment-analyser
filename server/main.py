@@ -213,11 +213,20 @@ def predict_sentiment(text: str, max_length: int = 50) -> Dict[str, Any]:
             predicted_class = torch.argmax(outputs, dim=1).cpu().numpy()[0]
 
         # Get sentiment label and confidence
-        sentiment = str(label_encoder.classes_[predicted_class])
+        predicted_label = label_encoder.classes_[predicted_class]
+        if predicted_label == -1.0:
+            sentiment = "negative"
+        elif predicted_label == 0.0:
+            sentiment = "neutral"
+        elif predicted_label == 1.0:
+            sentiment = "positive"
+        else:
+            sentiment = "neutral"  # fallback
         confidence = float(probabilities[predicted_class])
 
         # Create probabilities dict
-        probs_dict = {str(label): float(prob) for label, prob in zip(label_encoder.classes_, probabilities)}
+        label_to_sentiment = {-1.0: "negative", 0.0: "neutral", 1.0: "positive"}
+        probs_dict = {label_to_sentiment.get(label, "neutral"): float(prob) for label, prob in zip(label_encoder.classes_, probabilities)}
 
         return {
             "text": text,
