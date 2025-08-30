@@ -40,7 +40,6 @@ const statusDiv = document.getElementById('status') as HTMLDivElement | null;
 const statusText = document.getElementById('status-text') as HTMLSpanElement | null;
 const startBtn = document.getElementById('start-btn') as HTMLButtonElement | null;
 const stopBtn = document.getElementById('stop-btn') as HTMLButtonElement | null;
-const openDashboardBtn = document.getElementById('open-dashboard-btn') as HTMLButtonElement | null;
 const reloadBtn = document.getElementById('reload-btn') as HTMLButtonElement | null;
 const totalMessagesEl = document.getElementById('total-messages') as HTMLSpanElement | null;
 const positiveCountEl = document.getElementById('positive-count') as HTMLSpanElement | null;
@@ -65,7 +64,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (startBtn) startBtn.addEventListener('click', startAnalysis);
     if (stopBtn) stopBtn.addEventListener('click', stopAnalysis);
     if (reloadBtn) reloadBtn.addEventListener('click', reloadTab);
-    if (openDashboardBtn) openDashboardBtn.addEventListener('click', openDashboardPage);
     if (apiUrlInput) apiUrlInput.addEventListener('change', saveSettings);
     if (autoStartCheckbox) autoStartCheckbox.addEventListener('change', saveSettings);
     if (showConfidenceCheckbox) showConfidenceCheckbox.addEventListener('change', saveSettings);
@@ -229,15 +227,6 @@ function stopAnalysis(): void {
     });
 }
 
-// Open dashboard in new tab
-function openDashboardPage(): void {
-    if (!apiUrlInput) return;
-
-    chrome.tabs.create({
-        url: `${apiUrlInput.value}/dashboard`
-    });
-}
-
 // Reload current tab to reinject content script
 function reloadTab(): void {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs: chrome.tabs.Tab[]) {
@@ -349,6 +338,8 @@ port.onMessage.addListener(function(request: MessageData) {
     } else if (request.action === 'analysisStarted') {
         console.log('Analysis started');
     } else if (request.action === 'analysisStopped') {
+        isAnalyzing = false;
+        updateUI();
         console.log('Analysis stopped');
     }
 });
