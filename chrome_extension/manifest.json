@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Live Chat Sentiment Analyzer",
+  "version": "1.0",
+  "description": "Real-time sentiment analysis of YouTube live chat messages",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "https://www.youtube.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "YouTube Sentiment Analyzer",
+    "default_icon": "icons/icon.svg"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

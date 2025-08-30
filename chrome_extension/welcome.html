@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to YouTube Sentiment Analyzer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .welcome-container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .welcome-container h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .welcome-container p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .steps {
+            text-align: left;
+            margin: 20px 0;
+        }
+        .step {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome-container">
+        <h1>🎉 Welcome to YouTube Sentiment Analyzer!</h1>
+        <p>Thank you for installing the YouTube Live Chat Sentiment Analyzer extension. This extension provides real-time sentiment analysis of YouTube live chat messages.</p>
+
+        <div class="steps">
+            <h3>🚀 Getting Started:</h3>
+            <div class="step">
+                <strong>1. Start the API Server</strong><br>
+                Make sure your FastAPI server is running on <code>http://localhost:8000</code>
+            </div>
+            <div class="step">
+                <strong>2. Navigate to a YouTube Live Stream</strong><br>
+                Go to any YouTube live stream video
+            </div>
+            <div class="step">
+                <strong>3. Click the Extension Icon</strong><br>
+                Click the extension icon in your browser toolbar and click "Start Analysis"
+            </div>
+            <div class="step">
+                <strong>4. View Real-time Results</strong><br>
+                Watch as chat messages are analyzed in real-time with sentiment scores
+            </div>
+        </div>
+
+        <p><strong>Features:</strong></p>
+        <ul style="text-align: left; display: inline-block;">
+            <li>Real-time sentiment analysis of live chat messages</li>
+            <li>Interactive dashboard with charts and statistics</li>
+            <li>Confidence scores for each analysis</li>
+            <li>Auto-start functionality on YouTube pages</li>
+            <li>Customizable API server URL</li>
+        </ul>
+
+        <button class="btn" id="open-dashboard-btn">Open Dashboard</button>
+        <button class="btn" id="close-welcome-btn">Get Started</button>
+    </div>
+
+    <script src="welcome.js"></script>
+</body>
+</html>

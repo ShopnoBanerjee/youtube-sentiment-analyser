@@ -1,0 +1,24 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="100%" style="stop-color:#764ba2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="url(#bg)" stroke="#fff" stroke-width="4"/>
+
+  <!-- YouTube play button -->
+  <polygon points="45,35 45,93 85,64" fill="#fff"/>
+
+  <!-- Sentiment indicators -->
+  <circle cx="20" cy="25" r="8" fill="#28a745"/>
+  <circle cx="108" cy="25" r="8" fill="#dc3545"/>
+  <circle cx="20" cy="103" r="8" fill="#ffc107"/>
+  <circle cx="108" cy="103" r="8" fill="#6c757d"/>
+
+  <!-- Chat bubble -->
+  <path d="M 25,45 Q 15,45 15,55 L 15,75 Q 15,85 25,85 L 35,85 L 40,90 L 45,85 L 95,85 Q 105,85 105,75 L 105,55 Q 105,45 95,45 Z"
+        fill="#fff" opacity="0.9"/>
+</svg>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Sentiment Analyzer</title>
+    <style>
+        body {
+            width: 350px;
+            height: 500px;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            padding: 15px;
+            background: white;
+            height: 100%;
+            box-sizing: border-box;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            color: #2c3e50;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .status.active {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.inactive {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .controls {
+            margin: 15px 0;
+        }
+        .control-group {
+            margin: 10px 0;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .control-group input, .control-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn.success {
+            background: #28a745;
+        }
+        .btn.success:hover {
+            background: #1e7e34;
+        }
+        .btn.danger {
+            background: #dc3545;
+        }
+        .btn.danger:hover {
+            background: #bd2130;
+        }
+        .btn.warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        .btn.warning:hover {
+            background: #e0a800;
+        }
+        .stats {
+            margin: 15px 0;
+        }
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .stat-label {
+            font-weight: bold;
+        }
+        .stat-value {
+            color: #007bff;
+        }
+        .messages {
+            margin: 15px 0;
+        }
+        .message-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+        }
+        .message {
+            padding: 5px;
+            margin: 3px 0;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .message.positive {
+            background: #d4edda;
+            border-left: 3px solid #28a745;
+        }
+        .message.negative {
+            background: #f8d7da;
+            border-left: 3px solid #dc3545;
+        }
+        .message.neutral {
+            background: #fff3cd;
+            border-left: 3px solid #ffc107;
+        }
+        .settings {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .settings h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+        }
+        .settings-toggle {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .settings-toggle input {
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎥 YT Sentiment</h1>
+        </div>
+
+        <div id="status" class="status inactive">
+            <span id="status-text">Extension Inactive</span>
+        </div>
+
+        <div class="controls">
+            <button id="start-btn" class="btn success">Start Analysis</button>
+            <button id="stop-btn" class="btn danger">Stop Analysis</button>
+            <button id="reload-btn" class="btn warning">Reload Page</button>
+            <button id="open-dashboard-btn" class="btn">Open Dashboard</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Total Messages:</span>
+                <span id="total-messages" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Positive:</span>
+                <span id="positive-count" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Negative:</span>
+                <span id="negative-count" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Neutral:</span>
+                <span id="neutral-count" class="stat-value">0</span>
+            </div>
+        </div>
+
+        <div class="messages">
+            <h3>Recent Messages</h3>
+            <div id="message-list" class="message-list"></div>
+        </div>
+
+        <div class="settings">
+            <h3>Settings</h3>
+            <div class="settings-toggle">
+                <input type="checkbox" id="auto-start" checked>
+                <label for="auto-start">Auto-start on YouTube</label>
+            </div>
+            <div class="settings-toggle">
+                <input type="checkbox" id="show-confidence" checked>
+                <label for="show-confidence">Show confidence scores</label>
+            </div>
+            <div class="control-group">
+                <label for="api-url">API Server URL:</label>
+                <input type="text" id="api-url" value="http://localhost:8000" placeholder="http://localhost:8000">
+            </div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
