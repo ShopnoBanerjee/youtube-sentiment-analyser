@@ -3,3 +3,6 @@ mlflow-server_accessKeys.csv
 mlflow.pem
 mlruns
 __pycache__
+node_modules
+chrome_extension/*.js
+chrome_extension/*.js.map

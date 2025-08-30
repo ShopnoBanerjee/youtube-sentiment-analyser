@@ -279,7 +279,7 @@ async def analyze_batch_sentiment(request: BatchSentimentRequest):
             for sentiment, count in sentiment_counts.items()
         }
     }
-
+    print(results)
     return {"results": results, "summary": summary}
 
 @app.get("/dashboard", response_class=HTMLResponse)
