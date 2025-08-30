@@ -1,0 +1,2 @@
+2025-08-31 00:40:04,194 - data_preprocessing - ERROR - Error during text normalization: 'clean_comment'
+2025-08-31 00:40:04,194 - data_preprocessing - ERROR - Failed to complete the data preprocessing process: 'clean_comment'

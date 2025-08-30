@@ -6,3 +6,4 @@ __pycache__
 node_modules
 chrome_extension/*.js
 chrome_extension/*.js.map
+/experiment_info.json
