@@ -1,0 +1,16 @@
+{
+  "name": "youtube-sentiment-analyzer-extension",
+  "version": "1.0.0",
+  "description": "Chrome extension for real-time YouTube live chat sentiment analysis",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rimraf *.js *.js.map"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "typescript": "^5.3.0",
+    "rimraf": "^5.0.0"
+  },
+  "private": true
+}

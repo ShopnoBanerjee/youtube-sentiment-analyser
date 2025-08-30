@@ -1,16 +1,45 @@
 // YouTube Live Chat Sentiment Analyzer - Content Script
 
-let isMonitoring = false;
-let observer = null;
-let processedMessages = new Set();
-let sentimentStats = {
+// Type definitions
+interface SentimentStats {
+    total: number;
+    positive: number;
+    negative: number;
+    neutral: number;
+}
+
+interface SentimentMessage {
+    text: string;
+    sentiment: string;
+    confidence: number;
+}
+
+interface MessageData {
+    action: string;
+    stats?: SentimentStats;
+    message?: SentimentMessage;
+    error?: string;
+    apiUrl?: string;
+    showConfidence?: boolean;
+}
+
+interface ProcessedMessage {
+    id: string;
+    text: string;
+    timestamp: number;
+}
+
+let isMonitoring: boolean = false;
+let observer: MutationObserver | null = null;
+let processedMessages: Set<string> = new Set();
+let sentimentStats: SentimentStats = {
     total: 0,
     positive: 0,
     negative: 0,
     neutral: 0
 };
-let apiUrl = 'http://localhost:8000';
-let showConfidence = true;
+let apiUrl: string = 'http://localhost:8000';
+let showConfidence: boolean = true;
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
@@ -97,11 +126,11 @@ function findChatContainer() {
     }
 
     // Try to find by traversing the DOM
-    const chatFrame = document.querySelector('#chatframe');
+    const chatFrame = document.querySelector('#chatframe') as HTMLIFrameElement | null;
     if (chatFrame) {
         try {
-            const chatDoc = chatFrame.contentDocument || chatFrame.contentWindow.document;
-            const chatContainer = chatDoc.querySelector('#chat-messages, #items');
+            const chatDoc = chatFrame.contentDocument || (chatFrame.contentWindow && chatFrame.contentWindow.document);
+            const chatContainer = chatDoc?.querySelector('#chat-messages, #items') as Element | null;
             if (chatContainer) {
                 console.log('Found chat container in iframe');
                 return chatContainer;
@@ -115,9 +144,9 @@ function findChatContainer() {
 }
 
 // Set up mutation observer for chat messages
-function setupChatObserver(container) {
-    observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
+function setupChatObserver(container: Element): void {
+    observer = new MutationObserver(function(mutations: MutationRecord[]) {
+        mutations.forEach(function(mutation: MutationRecord) {
             if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                 processNewMessages(mutation.addedNodes);
             }
@@ -139,11 +168,12 @@ function setupChatObserver(container) {
 }
 
 // Process new chat messages
-function processNewMessages(nodes) {
-    const messages = [];
+function processNewMessages(nodes: NodeList | NodeListOf<Element>): void {
+    const messages: ProcessedMessage[] = [];
 
-    nodes.forEach(node => {
+    nodes.forEach((node: Node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
+            const element = node as Element;
             // Try different selectors for message text
             const messageSelectors = [
                 '[class*="message"], [class*="content"]',
@@ -151,23 +181,50 @@ function processNewMessages(nodes) {
                 '[class*="body"]'
             ];
 
-            let messageText = null;
+            let messageText: string | null = null;
             for (const selector of messageSelectors) {
-                const element = node.querySelector(selector);
-                if (element) {
-                    messageText = element.textContent || element.innerText;
-                    break;
+                const foundElement = element.querySelector(selector);
+                if (foundElement) {
+                    // Prioritize textContent over innerHTML to avoid HTML tags
+                    messageText = foundElement.textContent?.trim() || foundElement.innerHTML;
+                    if (messageText) {
+                        // If we got innerHTML, try to strip HTML tags
+                        if (foundElement.textContent?.trim()) {
+                            messageText = foundElement.textContent.trim();
+                        } else {
+                            // Remove HTML tags if we have to use innerHTML
+                            messageText = messageText.replace(/<[^>]*>/g, '').trim();
+                        }
+                        break;
+                    }
                 }
             }
 
             // If no specific selector worked, try getting text from the node itself
             if (!messageText) {
-                messageText = node.textContent || node.innerText;
+                // Prioritize textContent over innerHTML
+                messageText = element.textContent?.trim() || element.innerHTML;
+                if (messageText && !element.textContent?.trim()) {
+                    // Remove HTML tags if we have to use innerHTML
+                    messageText = messageText.replace(/<[^>]*>/g, '').trim();
+                }
             }
 
-            // Clean up the message text
+// Clean up the message text
             if (messageText) {
                 messageText = messageText.trim();
+
+                // Remove @username mentions
+                messageText = messageText.replace(/@\w+/g, '').trim();
+
+                // Remove timestamps (like "7:24 AM")
+                messageText = messageText.replace(/\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?/g, '').trim();
+
+                // Remove invisible Unicode characters (zero-width spaces, etc.)
+                messageText = messageText.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+
+                // Remove extra whitespace
+                messageText = messageText.replace(/\s+/g, ' ').trim();
 
                 // Skip if message is too short or too long
                 if (messageText.length < 3 || messageText.length > 500) {
@@ -175,7 +232,7 @@ function processNewMessages(nodes) {
                 }
 
                 // Create a unique ID for the message
-                const messageId = generateMessageId(node, messageText);
+                const messageId = generateMessageId(element, messageText);
 
                 // Skip if already processed
                 if (processedMessages.has(messageId)) {
@@ -199,7 +256,7 @@ function processNewMessages(nodes) {
 }
 
 // Generate unique message ID
-function generateMessageId(node, text) {
+function generateMessageId(node: Element, text: string): string {
     // Use a combination of node attributes and text hash
     const nodeId = node.id || node.className || '';
     const textHash = hashString(text);
@@ -207,7 +264,7 @@ function generateMessageId(node, text) {
 }
 
 // Simple string hash function
-function hashString(str) {
+function hashString(str: string): number {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
         const char = str.charCodeAt(i);
@@ -218,9 +275,9 @@ function hashString(str) {
 }
 
 // Analyze messages using the API
-async function analyzeMessages(messages) {
+async function analyzeMessages(messages: ProcessedMessage[]): Promise<void> {
     try {
-        const texts = messages.map(msg => msg.text);
+        const texts = messages.map((msg: ProcessedMessage) => msg.text);
 
         const response = await fetch(`${apiUrl}/analyze-batch`, {
             method: 'POST',
@@ -240,22 +297,26 @@ async function analyzeMessages(messages) {
         const result = await response.json();
 
         // Update statistics and send to popup
-        result.results.forEach((analysis, index) => {
-            const message = messages[index];
-            const sentiment = analysis.sentiment.toLowerCase();
+        result.results.forEach((analysis: any, index: number) => {
+            if (index < messages.length) {
+                const message = messages[index]!;
+                const sentiment = analysis.sentiment.toLowerCase();
 
-            sentimentStats.total++;
-            sentimentStats[sentiment]++;
+                sentimentStats.total++;
+                if (sentiment === 'positive') sentimentStats.positive++;
+                else if (sentiment === 'negative') sentimentStats.negative++;
+                else if (sentiment === 'neutral') sentimentStats.neutral++;
 
-            // Send message to popup
-            sendMessageToPopup({
-                action: 'addMessage',
-                message: {
-                    text: message.text,
-                    sentiment: sentiment,
-                    confidence: analysis.confidence
-                }
-            });
+                // Send message to popup
+                sendMessageToPopup({
+                    action: 'addMessage',
+                    message: {
+                        text: message.text,
+                        sentiment: sentiment,
+                        confidence: analysis.confidence
+                    }
+                });
+            }
         });
 
         // Send updated stats to popup
@@ -264,18 +325,29 @@ async function analyzeMessages(messages) {
             stats: sentimentStats
         });
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('Error analyzing messages:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         sendMessageToPopup({
             action: 'analysisError',
-            error: error.message
+            error: errorMessage
         });
     }
 }
 
 // Send message to popup
-function sendMessageToPopup(message) {
-    chrome.runtime.sendMessage(message);
+function sendMessageToPopup(message: MessageData) {
+    try {
+        chrome.runtime.sendMessage(message);
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        if (errorMessage.includes('Extension context invalidated')) {
+            console.warn('Extension context invalidated, stopping monitoring');
+            stopMonitoring();
+        } else {
+            console.error('Error sending message to popup:', errorMessage);
+        }
+    }
 }
 
 // Listen for messages from popup
