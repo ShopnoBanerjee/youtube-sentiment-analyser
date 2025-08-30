@@ -4,6 +4,9 @@ This project is a real-time sentiment analysis tool for YouTube Live Chats, buil
 
 ---
 
+<img width="1897" height="931" alt="image" src="https://github.com/user-attachments/assets/daee023d-4197-4f7c-895b-4ab80b83d86b" />
+
+
 ## Features
 
 - **Real-time Analysis**: Monitors and analyzes YouTube live chat messages as they are posted.  
